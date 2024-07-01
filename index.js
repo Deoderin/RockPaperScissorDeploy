@@ -1,29 +1,37 @@
 const express = require("express");
 const path = require("path");
 const TelegramBot = require("node-telegram-bot-api");
-const TOKEN = "7371253991:AAFcggsH07X8ay6eutA2U-CYfQnuJkEf1z8";
+const TOKEN = "";
 const server = express();
-const bot = new TelegramBot(TOKEN, {
-    polling: true
-});
+const bot = new TelegramBot(TOKEN, { polling: true });
 const port = process.env.PORT || 5000;
 const gameName = "RockPaperScissorsCoin";
 const queries = {};
+
 server.use(express.static(path.join(__dirname, 'RockPaperScissorDeploy')));
+
 bot.onText(/help/, (msg) => bot.sendMessage(msg.from.id, "Say /game if you want to play."));
-bot.onText(/start|game/, (msg) => bot.sendGame(msg.from.id, gameName));
+
+bot.onText(/start|game/, (msg) => {
+    const gameUrl = `https://deoderin.github.io/RockPaperScissorDeploy/?startapp=${msg.from.id}`;
+    bot.sendGame(msg.from.id, gameName);
+    console.log(`Game URL: ${gameUrl}`);
+});
+
 bot.on("callback_query", function (query) {
     if (query.game_short_name !== gameName) {
         bot.answerCallbackQuery(query.id, "Sorry, '" + query.game_short_name + "' is not available.");
     } else {
         queries[query.id] = query;
-        let gameurl = "https://deoderin.github.io/RockPaperScissorDeploy/?startapp={"+query.id+"}";
+        const gameUrl = `https://deoderin.github.io/RockPaperScissorDeploy/?startapp=${query.from.id}`;
         bot.answerCallbackQuery({
             callback_query_id: query.id,
-            url: gameurl
+            url: gameUrl
         });
+        console.log(`Game URL: ${gameUrl}`);
     }
 });
+
 bot.on("inline_query", function (iq) {
     bot.answerInlineQuery(iq.id, [{
         type: "game",
@@ -31,6 +39,7 @@ bot.on("inline_query", function (iq) {
         game_short_name: gameName
     }]);
 });
+
 server.get("/highscore/:score", function (req, res, next) {
     if (!Object.hasOwnProperty.call(queries, req.query.id)) return next();
     let query = queries[req.query.id];
@@ -45,7 +54,7 @@ server.get("/highscore/:score", function (req, res, next) {
             inline_message_id: query.inline_message_id
         };
     }
-    bot.setGameScore(query.from.id, parseInt(req.params.score), options,
-        function (err, result) {});
+    bot.setGameScore(query.from.id, parseInt(req.params.score), options, function (err, result) {});
 });
+
 server.listen(port);
